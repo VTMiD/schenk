@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор развёртки шнека (DXF)</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; display: flex; justify-content: center; padding: 20px; margin: 0; }
+    .container { background: white; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 30px 35px; max-width: 860px; width: 100%; }
+    h1 { text-align: center; color: #1e3a5f; font-weight: 500; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+    .field-group { display: flex; flex-wrap: wrap; gap: 15px 20px; margin: 20px 0; }
+    .field { flex: 1 0 calc(50% - 20px); min-width: 140px; }
+    .field.full { flex: 1 0 100%; }
+    label { display: block; font-weight: 600; color: #2d3748; margin-bottom: 4px; font-size: 14px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 16px; transition: 0.2s; }
+    input:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(49,130,206,0.2); }
+    .hint { font-size: 12px; color: #718096; margin-top: 3px; }
+    .recommendation { font-size: 13px; margin-top: 5px; padding: 6px 10px; border-radius: 6px; background: #f7fafc; border-left: 4px solid #48bb78; transition: 0.2s; }
+    .mode-switch { display: flex; gap: 12px; margin: 15px 0 5px; flex-wrap: wrap; }
+    .mode-switch label { flex: 1; min-width: 150px; cursor: pointer; border: 2px solid #cbd5e0; border-radius: 10px; padding: 12px 14px; text-align: center; font-weight: 600; color: #2d3748; background: #f7fafc; transition: 0.2s; user-select: none; margin-bottom: 0; }
+    .mode-switch label.active { border-color: #3182ce; background: #ebf8ff; color: #2b6cb0; box-shadow: 0 0 0 3px rgba(49,130,206,0.15); }
+    .mode-switch input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+    .slots-area { margin: 15px 0 10px; padding: 12px 15px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .slots-title { font-weight: 600; color: #2d3748; margin-bottom: 8px; display: block; }
+    .slot-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+    .slot-row:last-child { margin-bottom: 0; }
+    .slot-label { font-weight: 600; color: #4a5568; min-width: 55px; }
+    .slot-btn { background: #e2e8f0; border: none; padding: 4px 14px; border-radius: 16px; font-size: 13px; cursor: pointer; transition: 0.2s; font-weight: 500; }
+    .slot-btn.save { background: #48bb78; color: white; }
+    .slot-btn.load { background: #3182ce; color: white; }
+    .slot-status { font-size: 13px; color: #718096; margin-left: 4px; }
+    .slot-status.filled { color: #38a169; font-weight: 600; }
+    .button-group { display: flex; gap: 12px; margin: 10px 0 15px; flex-wrap: wrap; }
+    .button { flex: 1; min-width: 100px; background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-align: center; }
+    .button:hover { background: #2b6cb0; }
+    .button.print { background: #48bb78; }
+    .button.reset { background: #e53e3e; }
+    .button.dxf { background: #9f7aea; }
+    .button.dxf-per { background: #805ad5; }
+    .button.txt { background: #ed8936; }
+    .button.txt:hover { background: #dd6b20; }
+    .results { background: #edf2f7; border-radius: 12px; padding: 20px 25px; margin-top: 20px; }
+    .results h2 { margin-top: 0; font-size: 20px; color: #1a202c; border-bottom: 1px solid #cbd5e0; padding-bottom: 10px; }
+    .result-section { margin-bottom: 15px; }
+    .result-section h3 { font-size: 16px; color: #2d3748; margin: 10px 0 6px; border-bottom: 1px dashed #cbd5e0; padding-bottom: 4px; }
+    .result-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #e2e8f0; }
+    .result-row:last-child { border-bottom: none; }
+    .result-label { color: #2d3748; font-weight: 500; }
+    .result-value { font-weight: 600; color: #1a202c; }
+    .result-value.highlight { background: #e2e8f0; padding: 2px 8px; border-radius: 4px; }
+    .result-value.good { color: #38a169; }
+    .result-value.warning { color: #d69e2e; }
+    .input-data { background: #f7fafc; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; }
+    .input-data .result-row { border-bottom: 1px dashed #cbd5e0; }
+    .input-data .result-row:last-child { border-bottom: none; }
+    .error { color: #e53e3e; font-weight: 600; text-align: center; margin-top: 10px; }
+    .note { font-size: 14px; color: #4a5568; margin-top: 15px; background: #fefcbf; padding: 10px; border-radius: 8px; border-left: 4px solid #d69e2e; }
+    .note strong { color: #2d3748; }
+    .table-scroll { overflow-x: auto; margin-top: 8px; max-height: 340px; overflow-y: auto; }
+    .result-table { width: 100%; border-collapse: collapse; font-size: 12.5px; background: #f7fafc; border-radius: 8px; overflow: hidden; }
+    .result-table th, .result-table td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; }
+    .result-table th { background: #e2e8f0; color: #2d3748; font-weight: 600; text-align: center; font-size: 12px; position: sticky; top: 0; }
+    .result-table td:first-child, .result-table th:first-child { text-align: center; }
+    .result-table tr.weld-row td { background: #fefcbf; color: #744210; font-weight: 600; }
+    .dev-block { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 15px; margin-bottom: 12px; }
+    .dev-block h4 { margin: 0 0 8px; color: #2b6cb0; font-size: 15px; }
+    @media print {
+        body { background: white; padding: 0; }
+        .container { box-shadow: none; padding: 10px; max-width: 100%; }
+        .no-print { display: none !important; }
+        .results { background: white !important; padding: 0 !important; }
+        .dev-block { page-break-inside: avoid; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>🔧 Развёртка шнека</h1>
+    <p style="text-align:center; color:#4a5568; margin-top:-5px;">Расчёт плоской заготовки для винтовой поверхности</p>
+
+    <div class="no-print">
+        <div class="mode-switch">
+            <label id="modeCylLabel" class="active" onclick="setMode('cyl')">
+                <input type="radio" name="mode" value="cyl" checked> ⬤ Цилиндрический
+            </label>
+            <label id="modeConeLabel" onclick="setMode('cone')">
+                <input type="radio" name="mode" value="cone"> ◣ Конический (сверху вниз)
+            </label>
+        </div>
+
+        <div id="cylFields" class="field-group">
+            <div class="field"><label for="D">Наружный диаметр D, мм</label><input type="number" id="D" step="0.5" min="0.1"></div>
+            <div class="field"><label for="d">Внутренний диаметр d, мм</label><input type="number" id="d" step="0.5" min="0.1"></div>
+            <div class="field"><label for="S">Шаг S, мм</label><input type="number" id="S" step="0.5" min="0.1"><div id="stepRecommendation" class="recommendation"></div></div>
+            <div class="field"><label for="t">Толщина листа t, мм</label><input type="number" id="t" step="0.1" min="0"><div class="hint">При t=0 — без учёта толщины</div></div>
+            <div class="field full"><label for="delta">Коррекция внутреннего диаметра Δd, мм</label><input type="number" id="delta" step="0.1"><div class="hint">Отрицательное — уменьшает d (плотная посадка)</div></div>
+        </div>
+
+        <div id="coneFields" class="field-group" style="display:none;">
+            <div class="field"><label for="D1">⬆ Наружный Ø большого конца D₁ (верх), мм</label><input type="number" id="D1" step="0.5" min="0.1"></div>
+            <div class="field"><label for="D2">⬇ Наружный Ø малого конца D₂ (низ), мм</label><input type="number" id="D2" step="0.5" min="0.1"></div>
+            <div class="field"><label for="d1">⬆ Внутренний Ø большого конца d₁ (верх), мм</label><input type="number" id="d1" step="0.5" min="0.1"></div>
+            <div class="field"><label for="d2">⬇ Внутренний Ø малого конца d₂ (низ), мм</label><input type="number" id="d2" step="0.5" min="0.1"></div>
+            <div class="field full"><label for="Hc">Длина конической части H, мм</label><input type="number" id="Hc" step="1" min="0.1"><div class="hint">Осевая длина: отсчитывается от верха (большой Ø) вниз</div></div>
+            <div class="field"><label for="Sc">Шаг S, мм</label><input type="number" id="Sc" step="0.5" min="0.1"><div id="stepRecommendationCone" class="recommendation"></div></div>
+            <div class="field"><label for="tc">Толщина листа t, мм</label><input type="number" id="tc" step="0.1" min="0"><div class="hint">При t=0 — без учёта толщины</div></div>
+            <div class="field"><label for="deltac">Коррекция Ø Δd, мм</label><input type="number" id="deltac" step="0.1" value="0"></div>
+            <div class="field"><label for="Np">Число точек разбиения (сегментов)</label><input type="number" id="Np" step="1" min="3" max="72" value="12"><div class="hint">По умолчанию 12 (классический метод)</div></div>
+            <div class="field full"><label for="weldAllow">🔩 Припуск на сварку, мм</label><input type="number" id="weldAllow" step="0.5" min="0" value="2"><div class="hint">Общий припуск. Поровну на 2 края кромок</div></div>
+        </div>
+
+        <div class="slots-area">
+            <span class="slots-title">📂 Сохранённые варианты (3 слота)</span>
+            <div class="slot-row"><span class="slot-label">Слот 1</span><button class="slot-btn save" onclick="saveSlot(1)">Сохранить</button><button class="slot-btn load" onclick="loadSlot(1)">Загрузить</button><span class="slot-status" id="slotStatus1">пусто</span></div>
+            <div class="slot-row"><span class="slot-label">Слот 2</span><button class="slot-btn save" onclick="saveSlot(2)">Сохранить</button><button class="slot-btn load" onclick="loadSlot(2)">Загрузить</button><span class="slot-status" id="slotStatus2">пусто</span></div>
+            <div class="slot-row"><span class="slot-label">Слот 3</span><button class="slot-btn save" onclick="saveSlot(3)">Сохранить</button><button class="slot-btn load" onclick="loadSlot(3)">Загрузить</button><span class="slot-status" id="slotStatus3">пусто</span></div>
+        </div>
+
+        <div class="button-group">
+            <button class="button" onclick="calculate()">Рассчитать</button>
+            <button class="button print" onclick="printResults()">🖨️ Печать</button>
+            <button class="button reset" onclick="resetToDefaults()">↺ Сбросить</button>
+        </div>
+        <div class="button-group">
+            <button class="button dxf" onclick="exportDXF()">📐 DXF (все витки)</button>
+            <button class="button dxf-per" onclick="exportDXFPerTurn()">📐 DXF (по отдельности)</button>
+        </div>
+        <div class="button-group">
+            <button class="button txt" onclick="exportCoordsTXT()">📄 TXT (все витки)</button>
+            <button class="button txt" onclick="exportCoordsTXTPerTurn()">📄 TXT (по отдельности)</button>
+        </div>
+    </div>
+
+    <div id="results" class="results print-area">
+        <h2>📐 Результаты развёртки</h2>
+        <div id="resultItems"></div>
+        <div id="errorMsg" class="error"></div>
+    </div>
+
+    <div class="note no-print">
+        ⚠️ Расчёт по <strong>средним (нейтральным) линиям</strong>. Δd учитывает деформацию металла.
+        <br>◣ <strong>Конический режим:</strong> ввод <strong>сверху вниз</strong> — сначала большой Ø (верх), затем малый Ø (низ).
+        <br>💾 <strong>DXF:</strong> замкнутая полилиния <code>LWPOLYLINE</code> на слое <code>CUT</code> (для резки), маркировка «Виток N» на слое <code>MARK</code>.
+        <br>📄 <strong>TXT (все витки):</strong> координаты X Y всех витков в одном файле — для автоматического построения в КОМПАС-3D через API.
+        <br>📄 <strong>TXT (по отдельности):</strong> каждый виток сохраняется в отдельный файл <code>vitok_01_koordinaty.txt</code>, <code>vitok_02_koordinaty.txt</code>, …
+    </div>
+</div>
+
+<script>
+// ===================== ХРАНИЛИЩЕ =====================
+function isLocalStorageAvailable() { try { localStorage.setItem('t','t'); localStorage.removeItem('t'); return true; } catch(e){ return false; } }
+function setCookie(n,v,d){var e="";if(d){var dt=new Date();dt.setTime(dt.getTime()+d*864e5);e="; expires="+dt.toUTCString();}document.cookie=n+"="+(v||"")+e+"; path=/";}
+function getCookie(n){var k=n+"=",c=document.cookie.split(';');for(var i=0;i<c.length;i++){var s=c[i];while(s.charAt(0)==' ')s=s.substring(1);if(s.indexOf(k)==0)return s.substring(k.length);}return null;}
+function saveData(k,d){const j=JSON.stringify(d);if(isLocalStorageAvailable())localStorage.setItem(k,j);else setCookie(k,j,365);}
+function loadData(k){let j=null;if(isLocalStorageAvailable())j=localStorage.getItem(k);if(!j)j=getCookie(k);if(j){try{return JSON.parse(j);}catch(e){}}return null;}
+
+const ALL_INPUT_IDS = ['D','d','S','t','delta','D1','D2','d1','d2','Hc','Sc','tc','deltac','Np','weldAllow'];
+function getMode() { const el = document.querySelector('input[name="mode"]:checked'); return el ? el.value : 'cyl'; }
+function setMode(mode) {
+    if (mode !== 'cyl' && mode !== 'cone') return;
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.checked = (r.value === mode));
+    updateModeUI(); saveCurrentData(); calculate();
+}
+function collectData() { const d = { mode: getMode() }; ALL_INPUT_IDS.forEach(id => { const el = document.getElementById(id); if (el) d[id] = el.value; }); return d; }
+function applyData(d) {
+    if (!d) return;
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.checked = (r.value === (d.mode || 'cyl')));
+    ALL_INPUT_IDS.forEach(id => { const el = document.getElementById(id); if (el && d[id] !== undefined) el.value = d[id]; });
+    updateModeUI();
+}
+function saveCurrentData() { saveData('shnek_current', collectData()); }
+function restoreCurrentData() { const d = loadData('shnek_current'); if (d) { applyData(d); return true; } return false; }
+
+function getSlotData(n) { return loadData('shnek_slot_' + n); }
+function saveSlot(n) { saveData('shnek_slot_' + n, collectData()); updateSlotStatus(n); }
+function loadSlot(n) {
+    const d = getSlotData(n);
+    if (!d) { alert('Слот ' + n + ' пуст.'); return; }
+    applyData(d); saveCurrentData(); calculate();
+}
+function updateSlotStatus(n) {
+    const d = getSlotData(n); const s = document.getElementById('slotStatus' + n);
+    if (d) {
+        let t;
+        if (d.mode === 'cone') t = `Конич. D=${d.D1||'?'}→${d.D2||'?'}, H=${d.Hc||'?'}, N=${d.Np||12}`;
+        else t = `Цилиндр. D=${d.D||'?'}, d=${d.d||'?'}, S=${d.S||'?'}`;
+        s.textContent = t; s.className = 'slot-status filled';
+    } else { s.textContent = 'пусто'; s.className = 'slot-status'; }
+}
+function updateAllSlotsStatus() { updateSlotStatus(1); updateSlotStatus(2); updateSlotStatus(3); }
+
+function updateModeUI() {
+    const m = getMode();
+    document.getElementById('cylFields').style.display  = (m === 'cyl')  ? 'flex' : 'none';
+    document.getElementById('coneFields').style.display = (m === 'cone') ? 'flex' : 'none';
+    document.getElementById('modeCylLabel').classList.toggle('active', m === 'cyl');
+    document.getElementById('modeConeLabel').classList.toggle('active', m === 'cone');
+    updateStepRecommendation();
+}
+
+function renderRecommendation(D, S, divId) {
+    const rec = document.getElementById(divId); if (!rec) return;
+    if (isNaN(D) || D <= 0) { rec.innerHTML = '<span style="font-weight:600;">Рекомендация:</span> введите наружный диаметр'; rec.style.borderLeftColor='#3182ce'; rec.style.background='#ebf8ff'; return; }
+    const minS = 0.8*D, maxS = 1.2*D;
+    let st='', col='#48bb78', bg='#f0fff4';
+    if (!isNaN(S) && S > 0) {
+        if (S >= minS && S <= maxS) st = '✅ Оптимальный шаг';
+        else if (S < minS) { st = '⚠️ Шаг мал (риск заклинивания)'; col='#ecc94b'; bg='#fefcbf'; }
+        else { st = '⚠️ Шаг велик (снижение производительности)'; col='#ecc94b'; bg='#fefcbf'; }
+    } else { st = 'ℹ️ Введите шаг для оценки'; col='#3182ce'; bg='#ebf8ff'; }
+    rec.style.borderLeftColor = col; rec.style.background = bg;
+    rec.innerHTML = `<span style="font-weight:600;">Рекомендуемый шаг:</span> от ${minS.toFixed(1)} до ${maxS.toFixed(1)} мм (опт. ≈ ${D.toFixed(1)} мм)<br><span style="font-weight:500;">${st}</span>`;
+}
+function updateStepRecommendation() {
+    if (getMode() === 'cyl') {
+        renderRecommendation(parseFloat(document.getElementById('D').value), parseFloat(document.getElementById('S').value), 'stepRecommendation');
+    } else {
+        const D1 = parseFloat(document.getElementById('D1').value), D2 = parseFloat(document.getElementById('D2').value);
+        const Dm = (!isNaN(D1) && !isNaN(D2)) ? (D1 + D2) / 2 : NaN;
+        renderRecommendation(Dm, parseFloat(document.getElementById('Sc').value), 'stepRecommendationCone');
+    }
+}
+
+// ===================== МАТЕМАТИКА =====================
+function helixLength(R1, R2, h, S) {
+    if (h <= 0) return 0;
+    const N = 400, dz = h / N, dR = (R2 - R1) / h, k = 2*Math.PI/S;
+    const f = z => { const R = R1 + dR*z; return Math.sqrt(dR*dR + 1 + R*R*k*k); };
+    let s = f(0) + f(h);
+    for (let i = 1; i < N; i++) s += f(i*dz) * (i % 2 ? 4 : 2);
+    return s * dz / 3;
+}
+
+function developTurnTriangulation(R1, R2, r1, r2, dZ, S, N) {
+    const phiEnd = 2 * Math.PI * dZ / S;
+    const dPhi = phiEnd / N;
+    const dR = (R2 - R1) / N;
+    const dr = (r2 - r1) / N;
+    const dz = dZ / N;
+
+    const O3 = [], I3 = [];
+    for (let i = 0; i <= N; i++) {
+        const phi = i * dPhi, c = Math.cos(phi), s = Math.sin(phi);
+        const Ri = R1 + dR * i, ri = r1 + dr * i, zi = dz * i;
+        O3.push({ x: Ri*c, y: Ri*s, z: zi });
+        I3.push({ x: ri*c, y: ri*s, z: zi });
+    }
+    const d3 = (p,q) => Math.sqrt((p.x-q.x)**2 + (p.y-q.y)**2 + (p.z-q.z)**2);
+    const Lout = [], Lin = [], Rul = [], Diag = [];
+    for (let i = 0; i <= N; i++) Rul.push(d3(O3[i], I3[i]));
+    for (let i = 0; i < N; i++) {
+        Lout.push(d3(O3[i], O3[i+1]));
+        Lin.push(d3(I3[i], I3[i+1]));
+        Diag.push(d3(I3[i], O3[i+1]));
+    }
+
+    function place(A, B, dA, dB, sign) {
+        const dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy);
+        if (d < 1e-12) return { x: A.x + dA, y: A.y };
+        let cA = (dA*dA + d*d - dB*dB) / (2*dA*d);
+        cA = Math.max(-1, Math.min(1, cA));
+        const sA = sign * Math.sqrt(Math.max(0, 1 - cA*cA));
+        const ux = dx/d, uy = dy/d;
+        return { x: A.x + dA*(cA*ux - sA*uy), y: A.y + dA*(sA*ux + cA*uy) };
+    }
+
+    const FI = [{ x: 0, y: 0 }], FO = [{ x: Rul[0], y: 0 }];
+    for (let i = 0; i < N; i++) {
+        const On = place(FO[i], FI[i], Lout[i], Diag[i], +1);
+        FO.push(On);
+        const In = place(FI[i], On, Lin[i], Rul[i+1], -1);
+        FI.push(In);
+    }
+
+    let minX = Infinity, minY = Infinity;
+    [...FO, ...FI].forEach(p => { if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y; });
+    FO.forEach(p => { p.x -= minX; p.y -= minY; });
+    FI.forEach(p => { p.x -= minX; p.y -= minY; });
+
+    return { flatOuter: FO, flatInner: FI, Lout, Lin, Rul };
+}
+
+function applyWeldAllowance(dev, weld) {
+    if (weld <= 0) return { outer: dev.flatOuter.map(p=>({...p})), inner: dev.flatInner.map(p=>({...p})), weld: 0, perSide: 0 };
+    const perSide = weld / 2;
+    function extend(pts) {
+        const res = pts.map(p => ({ x: p.x, y: p.y }));
+        if (pts.length < 2) return res;
+        const p0 = pts[0], p1 = pts[1];
+        let dx = p0.x - p1.x, dy = p0.y - p1.y;
+        let d = Math.hypot(dx, dy);
+        if (d > 1e-9) res.unshift({ x: p0.x + dx/d * perSide, y: p0.y + dy/d * perSide });
+        const pN = pts[pts.length-1], pM = pts[pts.length-2];
+        dx = pN.x - pM.x; dy = pN.y - pM.y;
+        d = Math.hypot(dx, dy);
+        if (d > 1e-9) res.push({ x: pN.x + dx/d * perSide, y: pN.y + dy/d * perSide });
+        return res;
+    }
+    return { outer: extend(dev.flatOuter), inner: extend(dev.flatInner), weld, perSide };
+}
+
+// ===================== ОСНОВНОЙ РАСЧЁТ =====================
+let lastResult = null;
+
+function calculate() {
+    saveCurrentData();
+    if (getMode() === 'cyl') calculateCylindrical();
+    else calculateConical();
+}
+
+function calculateCylindrical() {
+    const err = document.getElementById('errorMsg');
+    const out = document.getElementById('resultItems');
+    err.textContent = '';
+
+    const D = parseFloat(document.getElementById('D').value);
+    const d = parseFloat(document.getElementById('d').value);
+    const S = parseFloat(document.getElementById('S').value);
+    const t = parseFloat(document.getElementById('t').value);
+    const delta = parseFloat(document.getElementById('delta').value);
+
+    if ([D,d,S,t,delta].some(v => isNaN(v))) { err.textContent = '❌ Заполните все поля числами.'; out.innerHTML = ''; return; }
+    if (D <= 0 || d <= 0 || S <= 0 || t < 0) { err.textContent = '❌ Диаметры и шаг должны быть > 0, толщина ≥ 0.'; out.innerHTML = ''; return; }
+    const d_eff = d + delta;
+    if (d_eff <= 0 || d_eff >= D) { err.textContent = '❌ Некорректный скорректированный внутренний диаметр.'; out.innerHTML = ''; return; }
+
+    const R_sr = D/2 - t/2, r_sr = d_eff/2 + t/2;
+    if (R_sr <= r_sr) { err.textContent = '❌ Средние радиусы пересекаются.'; out.innerHTML = ''; return; }
+    const W = R_sr - r_sr;
+    const L_nar = Math.sqrt((2*Math.PI*R_sr)**2 + S**2);
+    const L_vn  = Math.sqrt((2*Math.PI*r_sr)**2 + S**2);
+    if (L_nar <= L_vn) { err.textContent = '❌ Lнар ≤ Lвн.'; out.innerHTML = ''; return; }
+    const r_flat = L_vn * W / (L_nar - L_vn);
+    const R_flat = r_flat + W;
+    const theta = (L_nar - L_vn) * 180 / (Math.PI * W);
+    const alpha = 360 - theta;
+    if (r_flat <= 0 || R_flat <= 0 || theta <= 0 || alpha <= 0) { err.textContent = '❌ Нефизический результат.'; out.innerHTML = ''; return; }
+
+    lastResult = { mode: 'cyl', blanks: [{ R_flat, r_flat, theta }] };
+
+    const minS = 0.8*D, maxS = 1.2*D;
+    let stS = '', clS = '';
+    if (S >= minS && S <= maxS) { stS = '✅ в норме'; clS = 'good'; }
+    else if (S < minS) { stS = '⚠️ мал'; clS = 'warning'; }
+    else { stS = '⚠️ велик'; clS = 'warning'; }
+
+    out.innerHTML = `
+        <div class="input-data">
+            <h3>Исходные данные</h3>
+            <div class="result-row"><span class="result-label">Наружный диаметр D</span><span class="result-value">${D.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Внутренний диаметр d</span><span class="result-value">${d.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Коррекция Δd</span><span class="result-value">${delta.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">Скорректированный d<sub>корр</sub></span><span class="result-value">${d_eff.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Шаг S</span><span class="result-value ${clS}">${S.toFixed(2)} мм (${stS})</span></div>
+            <div class="result-row"><span class="result-label">Толщина листа t</span><span class="result-value">${t.toFixed(1)} мм</span></div>
+        </div>
+        <div class="result-section">
+            <h3>Результаты (один виток)</h3>
+            <div class="result-row"><span class="result-label"><strong>Ширина ленты B</strong></span><span class="result-value highlight">${W.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">L<sub>нар</sub></span><span class="result-value">${L_nar.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">L<sub>вн</sub></span><span class="result-value">${L_vn.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label"><strong>Внутренний радиус r</strong></span><span class="result-value">${r_flat.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label"><strong>Наружный радиус R</strong></span><span class="result-value">${R_flat.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Угол сектора θ</span><span class="result-value">${theta.toFixed(2)}°</span></div>
+            <div class="result-row"><span class="result-label"><strong>Угол выреза α</strong></span><span class="result-value">${alpha.toFixed(2)}°</span></div>
+        </div>`;
+}
+
+function calculateConical() {
+    const err = document.getElementById('errorMsg');
+    const out = document.getElementById('resultItems');
+    err.textContent = '';
+
+    const D1 = parseFloat(document.getElementById('D1').value);
+    const D2 = parseFloat(document.getElementById('D2').value);
+    const d1 = parseFloat(document.getElementById('d1').value);
+    const d2 = parseFloat(document.getElementById('d2').value);
+    const H  = parseFloat(document.getElementById('Hc').value);
+    const S  = parseFloat(document.getElementById('Sc').value);
+    const t  = parseFloat(document.getElementById('tc').value);
+    const delta = parseFloat(document.getElementById('deltac').value);
+    const weldAllow = Math.max(0, parseFloat(document.getElementById('weldAllow').value) || 0);
+    let N = parseInt(document.getElementById('Np').value);
+    if (isNaN(N) || N < 3) N = 12;
+    if (N > 72) N = 72;
+
+    if ([D1,D2,d1,d2,H,S,t,delta].some(v => isNaN(v))) { err.textContent = '❌ Заполните все поля числами.'; out.innerHTML = ''; return; }
+    if (D1 <= 0 || D2 <= 0 || d1 <= 0 || d2 <= 0 || H <= 0 || S <= 0 || t < 0) { err.textContent = '❌ Проверьте знаки и значения.'; out.innerHTML = ''; return; }
+    if (D1 < D2) { err.textContent = '❌ Большой Ø D₁ должен быть ≥ малого Ø D₂ (ввод сверху вниз).'; out.innerHTML = ''; return; }
+    const d1e = d1 + delta, d2e = d2 + delta;
+    if (d1e <= 0 || d2e <= 0 || d1e >= D1 || d2e >= D2) { err.textContent = '❌ Некорректный внутренний диаметр.'; out.innerHTML = ''; return; }
+
+    const R1 = D1/2 - t/2, R2 = D2/2 - t/2;
+    const r1 = d1e/2 + t/2, r2 = d2e/2 + t/2;
+    if (R1 <= r1 || R2 <= r2) { err.textContent = '❌ Средние радиусы пересекаются.'; out.innerHTML = ''; return; }
+
+    const nTotal = H / S;
+    const segCount = Math.max(1, Math.ceil(nTotal - 1e-9));
+    const Rz = z => R1 + (R2 - R1) * z / H;
+    const rz = z => r1 + (r2 - r1) * z / H;
+    const Dz = z => D1 + (D2 - D1) * z / H;
+    const dzf = z => d1e + (d2e - d1e) * z / H;
+
+    const turns = [];
+    let LoutTotal = 0, LinTotal = 0;
+
+    for (let i = 0; i < segCount; i++) {
+        const z0 = i * S;
+        const z1 = (i === segCount - 1) ? H : Math.min((i + 1) * S, H);
+        const dZ = z1 - z0;
+        if (dZ <= 1e-9) continue;
+
+        const Ra = Rz(z0), Rb = Rz(z1);
+        const ra = rz(z0), rb = rz(z1);
+
+        const Lout = helixLength(Ra, Rb, dZ, S);
+        const Lin  = helixLength(ra, rb, dZ, S);
+        LoutTotal += Lout; LinTotal += Lin;
+
+        const W1 = Ra - ra, W2 = Rb - rb;
+        const W = (W1 + W2) / 2;
+
+        const thetaRad = (Lout - Lin) / W;
+        const theta = thetaRad * 180 / Math.PI;
+        const alpha = 360 - theta;
+        const rSect = Lin / thetaRad;
+        const RSect = rSect + W;
+
+        const dev = developTurnTriangulation(Ra, Rb, ra, rb, dZ, S, N);
+        const devW = applyWeldAllowance(dev, weldAllow);
+
+        const allPts = [...devW.outer, ...devW.inner];
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        allPts.forEach(p => { if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y; if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y; });
+        const contourW = maxX - minX, contourH = maxY - minY;
+        const outerN = devW.outer.map(p => ({ x: p.x - minX, y: p.y - minY }));
+        const innerN = devW.inner.map(p => ({ x: p.x - minX, y: p.y - minY }));
+
+        turns.push({
+            idx: i + 1, z0, z1, dZ,
+            Da: Dz(z0), Db: Dz(z1), da: dzf(z0), db: dzf(z1),
+            Ra, Rb, ra, rb,
+            Lout, Lin, W1, W2, W,
+            rSect, RSect, theta, alpha,
+            dev: { outer: outerN, inner: innerN, Lout: dev.Lout, Lin: dev.Lin, Rul: dev.Rul },
+            contourW, contourH,
+            label: 'Виток ' + (i + 1),
+            weld: weldAllow
+        });
+    }
+
+    if (!turns.length) { err.textContent = '❌ Не удалось построить развёртку.'; out.innerHTML = ''; return; }
+
+    lastResult = {
+        mode: 'cone',
+        N: N,
+        weld: weldAllow,
+        turns: turns.map(tn => ({
+            idx: tn.idx,
+            label: tn.label,
+            outer: tn.dev.outer,
+            inner: tn.dev.inner,
+            bounds: { w: tn.contourW, h: tn.contourH },
+            rSect: tn.rSect, RSect: tn.RSect, theta: tn.theta, alpha: tn.alpha,
+            Da: tn.Da, Db: tn.Db, z0: tn.z0, z1: tn.z1
+        }))
+    };
+
+    const Dm = (D1 + D2) / 2;
+    const minS = 0.8*Dm, maxS = 1.2*Dm;
+    let stS = '', clS = '';
+    if (S >= minS && S <= maxS) { stS = '✅ в норме'; clS = 'good'; }
+    else if (S < minS) { stS = '⚠️ мал'; clS = 'warning'; }
+    else { stS = '⚠️ велик'; clS = 'warning'; }
+
+    let sectRows = '';
+    turns.forEach(tn => {
+        sectRows += `<tr>
+            <td>${tn.idx}</td>
+            <td>${tn.Da.toFixed(1)} → ${tn.Db.toFixed(1)}</td>
+            <td>${tn.da.toFixed(1)} → ${tn.db.toFixed(1)}</td>
+            <td>${tn.W.toFixed(2)}</td>
+            <td>${tn.rSect.toFixed(2)}</td>
+            <td>${tn.RSect.toFixed(2)}</td>
+            <td>${tn.theta.toFixed(2)}°</td>
+            <td>${tn.alpha.toFixed(2)}°</td>
+        </tr>`;
+    });
+
+    let devBlocks = '';
+    turns.forEach(tn => {
+        const total = tn.dev.outer.length;
+        let coordRows = '';
+        for (let i = 0; i < total; i++) {
+            const io = tn.dev.inner[i], oo = tn.dev.outer[i];
+            const isWeld = (weldAllow > 0 && (i === 0 || i === total - 1));
+            const cls = isWeld ? ' class="weld-row"' : '';
+            coordRows += `<tr${cls}>
+                <td>${i}${isWeld ? '★' : ''}</td>
+                <td>${io.x.toFixed(2)}</td><td>${io.y.toFixed(2)}</td>
+                <td>${oo.x.toFixed(2)}</td><td>${oo.y.toFixed(2)}</td>
+            </tr>`;
+        }
+        const svg = renderDevSVG(tn, N);
+        devBlocks += `
+            <div class="dev-block">
+                <h4>${tn.label} (z = ${tn.z0.toFixed(1)}…${tn.z1.toFixed(1)} мм сверху; D ${tn.Da.toFixed(1)} → ${tn.Db.toFixed(1)})</h4>
+                <div style="font-size:13px; margin-bottom:6px;">
+                    Секторная оценка: r = <b>${tn.rSect.toFixed(2)}</b>, R = <b>${tn.RSect.toFixed(2)}</b>, θ = <b>${tn.theta.toFixed(2)}°</b>, α = <b>${tn.alpha.toFixed(2)}°</b>
+                    ${weldAllow > 0 ? ` &nbsp;|&nbsp; Припуск на сварку: <b>${weldAllow} мм</b> (по ${(weldAllow/2).toFixed(2)} мм на каждый край)` : ''}
+                </div>
+                <div class="table-scroll">
+                    <table class="result-table">
+                        <thead><tr>
+                            <th>i</th>
+                            <th>X<sub>вн</sub></th><th>Y<sub>вн</sub></th>
+                            <th>X<sub>нар</sub></th><th>Y<sub>нар</sub></th>
+                        </tr></thead>
+                        <tbody>${coordRows}</tbody>
+                    </table>
+                </div>
+                ${svg}
+            </div>`;
+    });
+
+    out.innerHTML = `
+        <div class="input-data">
+            <h3>Исходные данные (коническая часть, сверху вниз)</h3>
+            <div class="result-row"><span class="result-label">⬆ Наружный Ø большого конца (верх)</span><span class="result-value">${D1.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">⬇ Наружный Ø малого конца (низ)</span><span class="result-value">${D2.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">⬆ Внутренний Ø большого конца</span><span class="result-value">${d1.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">⬇ Внутренний Ø малого конца</span><span class="result-value">${d2.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">Коррекция Δd</span><span class="result-value">${delta.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">Скорректированный внутр. Ø (верх → низ)</span><span class="result-value">${d1e.toFixed(2)} → ${d2e.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Длина H (сверху вниз)</span><span class="result-value">${H.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">Шаг S</span><span class="result-value ${clS}">${S.toFixed(2)} мм (${stS})</span></div>
+            <div class="result-row"><span class="result-label">Число витков n = H / S</span><span class="result-value">${nTotal.toFixed(3)}</span></div>
+            <div class="result-row"><span class="result-label">Число заготовок</span><span class="result-value">${turns.length}</span></div>
+            <div class="result-row"><span class="result-label">Толщина листа t</span><span class="result-value">${t.toFixed(1)} мм</span></div>
+            <div class="result-row"><span class="result-label">Точек разбиения N</span><span class="result-value">${N}</span></div>
+            <div class="result-row"><span class="result-label">Припуск на сварку</span><span class="result-value">${weldAllow.toFixed(2)} мм</span></div>
+        </div>
+
+        <div class="result-section">
+            <h3>Суммарные длины винтовых линий</h3>
+            <div class="result-row"><span class="result-label">Наружная L<sub>нар</sub></span><span class="result-value">${LoutTotal.toFixed(2)} мм</span></div>
+            <div class="result-row"><span class="result-label">Внутренняя L<sub>вн</sub></span><span class="result-value">${LinTotal.toFixed(2)} мм</span></div>
+        </div>
+
+        <div class="result-section">
+            <h3>Сводка: секторное приближение по виткам (сверху вниз)</h3>
+            <div class="table-scroll">
+                <table class="result-table">
+                    <thead><tr>
+                        <th>№</th><th>D, мм</th><th>d, мм</th><th>B, мм</th>
+                        <th>r, мм</th><th>R, мм</th><th>θ</th><th>α</th>
+                    </tr></thead>
+                    <tbody>${sectRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h3>Развёртки по ${N} точкам (метод треугольников)${weldAllow > 0 ? ' + припуск на сварку' : ''}</h3>
+            <div class="hint" style="margin-bottom:8px;">★ — строки, добавленные припуском на сварку. Виток №1 — верхний (наибольший).</div>
+            ${devBlocks}
+        </div>`;
+}
+
+function renderDevSVG(tn, N) {
+    const outer = tn.dev.outer, inner = tn.dev.inner;
+    const all = [...outer, ...inner];
+    let maxX = 0, maxY = 0;
+    all.forEach(p => { if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y; });
+    const W = maxX, H = maxY;
+    const pad = Math.max(W, H) * 0.06 + 5;
+    const fontSize = Math.max(W, H) / 18;
+
+    const outerPts = outer.map(q => `${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(' ');
+    const innerPts = inner.map(q => `${q.x.toFixed(2)},${q.y.toFixed(2)}`).join(' ');
+
+    let rulings = '';
+    const nRul = Math.min(outer.length, inner.length);
+    for (let i = 0; i < nRul; i++) {
+        const isWeldEdge = (i === 0 || i === nRul - 1);
+        rulings += `<line x1="${inner[i].x.toFixed(2)}" y1="${inner[i].y.toFixed(2)}" x2="${outer[i].x.toFixed(2)}" y2="${outer[i].y.toFixed(2)}" stroke="${isWeldEdge && tn.weld > 0 ? '#d69e2e' : '#e2e8f0'}" stroke-width="${isWeldEdge && tn.weld > 0 ? 0.8 : 0.3}" stroke-dasharray="${isWeldEdge && tn.weld > 0 ? '2 1' : '0'}"/>`;
+    }
+
+    let dots = '';
+    outer.forEach(p => { dots += `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="0.9" fill="#2b6cb0"/>`; });
+    inner.forEach(p => { dots += `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="0.9" fill="#c53030"/>`; });
+
+    const cx = W / 2, cy = H / 2;
+    const labelSvg = `<text x="${cx.toFixed(2)}" y="${cy.toFixed(2)}" font-size="${fontSize.toFixed(1)}"
+        text-anchor="middle" dominant-baseline="middle"
+        fill="#1e3a5f" font-weight="700" font-family="Segoe UI, sans-serif"
+        style="paint-order:stroke; stroke:#fff; stroke-width:${(fontSize*0.15).toFixed(2)}; stroke-linejoin:round;">${tn.label}</text>`;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-pad} ${-pad} ${W+2*pad} ${H+2*pad}"
+        preserveAspectRatio="xMidYMid meet"
+        style="width:100%; height:auto; max-height:440px; background:#fff; border:1px solid #e2e8f0; border-radius:6px; margin-top:8px;">
+        <polyline points="${outerPts}" fill="none" stroke="#2b6cb0" stroke-width="0.7"/>
+        <polyline points="${innerPts}" fill="none" stroke="#c53030" stroke-width="0.7"/>
+        ${rulings}
+        ${dots}
+        ${labelSvg}
+    </svg>`;
+}
+
+function resetToDefaults() {
+    document.getElementById('D').value = '200';
+    document.getElementById('d').value = '80';
+    document.getElementById('S').value = '160';
+    document.getElementById('t').value = '4';
+    document.getElementById('delta').value = '0';
+    document.getElementById('D1').value = '200';
+    document.getElementById('D2').value = '80';
+    document.getElementById('d1').value = '80';
+    document.getElementById('d2').value = '40';
+    document.getElementById('Hc').value = '160';
+    document.getElementById('Sc').value = '160';
+    document.getElementById('tc').value = '4';
+    document.getElementById('deltac').value = '0';
+    document.getElementById('Np').value = '12';
+    document.getElementById('weldAllow').value = '2';
+    saveCurrentData(); updateStepRecommendation(); calculate();
+}
+function printResults() { window.print(); }
+
+// ===================== DXF helpers =====================
+const LAYER_CUT = 'CUT';
+const LAYER_MARK = 'MARK';
+
+function dxfHeader(arr) {
+    arr.push('0','SECTION','2','HEADER','0','ENDSEC');
+    arr.push('0','SECTION','2','TABLES');
+    arr.push('0','TABLE','2','LAYER','70','2');
+    arr.push('0','LAYER','2', LAYER_CUT,'70','0','62','7','6','CONTINUOUS');
+    arr.push('0','LAYER','2', LAYER_MARK,'70','0','62','1','6','CONTINUOUS');
+    arr.push('0','ENDTAB');
+    arr.push('0','ENDSEC');
+    arr.push('0','SECTION','2','ENTITIES');
+}
+function dxfFooter(arr) { arr.push('0','ENDSEC','0','EOF'); }
+
+function dxfLwPolylineClosed(arr, pts, layer) {
+    arr.push('0','LWPOLYLINE');
+    arr.push('8', layer);
+    arr.push('100','AcDbEntity');
+    arr.push('100','AcDbPolyline');
+    arr.push('90', pts.length.toString());
+    arr.push('70','1');
+    for (const p of pts) {
+        arr.push('10', p.x.toFixed(3));
+        arr.push('20', p.y.toFixed(3));
+    }
+}
+
+function dxfTextMark(arr, cx, cy, height, text) {
+    arr.push('0','TEXT');
+    arr.push('8', LAYER_MARK);
+    arr.push('10', cx.toFixed(3),'20', cy.toFixed(3),'30','0.0');
+    arr.push('40', height.toFixed(2));
+    arr.push('1', text);
+    arr.push('72','1','73','2');
+    arr.push('11', cx.toFixed(3),'21', cy.toFixed(3),'31','0.0');
+    arr.push('7','STANDARD');
+}
+
+function dxfArc(arr, cx, cy, r, a0, a1) {
+    arr.push('0','ARC','8', LAYER_CUT);
+    arr.push('10', cx.toFixed(3),'20', cy.toFixed(3));
+    arr.push('40', r.toFixed(3));
+    arr.push('50', a0.toFixed(3),'51', a1.toFixed(3));
+}
+function dxfLine(arr, p, q) {
+    arr.push('0','LINE','8', LAYER_CUT);
+    arr.push('10', p.x.toFixed(3),'20', p.y.toFixed(3),'30','0.0');
+    arr.push('11', q.x.toFixed(3),'21', q.y.toFixed(3),'31','0.0');
+}
+
+function downloadBlob(content, filename, mime) {
+    const blob = new Blob([content], { type: mime || 'application/dxf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function buildClosedContour(outer, inner) {
+    const pts = [];
+    for (let i = 0; i < outer.length; i++) pts.push({ x: outer[i].x, y: outer[i].y });
+    for (let i = inner.length - 1; i >= 0; i--) pts.push({ x: inner[i].x, y: inner[i].y });
+    return pts;
+}
+
+// ===================== ЭКСПОРТ DXF (все витки) =====================
+function exportDXF() {
+    if (!lastResult) { alert('Сначала выполните расчёт.'); return; }
+    const dxf = [];
+    dxfHeader(dxf);
+
+    if (lastResult.mode === 'cone' && lastResult.turns) {
+        const gap = 40;
+        let xOffset = 0;
+        lastResult.turns.forEach(t => {
+            const shiftX = xOffset, shiftY = 0;
+            const outer = t.outer.map(p => ({ x: p.x + shiftX, y: p.y + shiftY }));
+            const inner = t.inner.map(p => ({ x: p.x + shiftX, y: p.y + shiftY }));
+
+            const contour = buildClosedContour(outer, inner);
+            dxfLwPolylineClosed(dxf, contour, LAYER_CUT);
+
+            const cx = shiftX + t.bounds.w / 2;
+            const cy = t.bounds.h / 2;
+            const textH = Math.max(t.bounds.w, t.bounds.h) / 12;
+            dxfTextMark(dxf, cx, cy, textH, t.label);
+
+            xOffset += t.bounds.w + gap;
+        });
+    } else {
+        const b = lastResult.blanks[0];
+        const R = b.R_flat, r = b.r_flat, th = b.theta;
+        const a0 = -th/2, a1 = th/2, cx = 0, cy = 0;
+        function pt(radius, angleDeg) {
+            const rad = angleDeg * Math.PI / 180;
+            return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
+        }
+        dxfArc(dxf, cx, cy, R, a0, a1);
+        dxfArc(dxf, cx, cy, r, a0, a1);
+        const p1o = pt(R, a0), p2o = pt(R, a1), p1i = pt(r, a0), p2i = pt(r, a1);
+        dxfLine(dxf, p1i, p1o);
+        dxfLine(dxf, p2i, p2o);
+    }
+
+    dxfFooter(dxf);
+    downloadBlob(dxf.join('\r\n'),
+        lastResult.mode === 'cone' ? 'razvertka_konus_vse_vitki.dxf' : 'razvertka_shneka.dxf');
+}
+
+// ===================== ЭКСПОРТ DXF (по отдельности) =====================
+function exportDXFPerTurn() {
+    if (!lastResult) { alert('Сначала выполните расчёт.'); return; }
+    if (lastResult.mode !== 'cone' || !lastResult.turns || !lastResult.turns.length) {
+        alert('Экспорт по отдельности доступен только для конического режима.');
+        return;
+    }
+    const turns = lastResult.turns;
+    turns.forEach((t, i) => {
+        setTimeout(() => {
+            const dxf = [];
+            dxfHeader(dxf);
+
+            const contour = buildClosedContour(t.outer, t.inner);
+            dxfLwPolylineClosed(dxf, contour, LAYER_CUT);
+
+            const cx = t.bounds.w / 2, cy = t.bounds.h / 2;
+            const textH = Math.max(t.bounds.w, t.bounds.h) / 12;
+            dxfTextMark(dxf, cx, cy, textH, t.label);
+
+            dxfFooter(dxf);
+            downloadBlob(dxf.join('\r\n'), `vitok_${String(t.idx).padStart(2,'0')}.dxf`);
+        }, i * 350);
+    });
+}
+
+// ===================== ПОСТРОЕНИЕ TXT ДЛЯ ОДНОГО ВИТКА =====================
+function buildTurnTXTContent(t) {
+    const L = [];
+    L.push('# Razvertka konusnogo shneka - koordinaty dlya KOMPAS-3D API');
+    L.push('# Vityok ' + t.idx + ' (' + t.label + ')');
+    L.push('# Koordinaty v millimetrah (X Y), sistema koordinat - kak v raschyote');
+    L.push('# N (tochek razbieniya) = ' + lastResult.N);
+    L.push('# Weld_allowance_mm = ' + lastResult.weld.toFixed(3));
+    L.push('# ---');
+    L.push('# z_range_mm = ' + t.z0.toFixed(3) + ' .. ' + t.z1.toFixed(3));
+    L.push('# D_mm = ' + t.Da.toFixed(3) + ' -> ' + t.Db.toFixed(3));
+    L.push('# sector_r_mm = ' + t.rSect.toFixed(3));
+    L.push('# sector_R_mm = ' + t.RSect.toFixed(3));
+    L.push('# sector_theta_deg = ' + t.theta.toFixed(4));
+    L.push('# sector_alpha_deg = ' + t.alpha.toFixed(4));
+    L.push('# points = ' + t.outer.length);
+    L.push('# bounds_w_mm = ' + t.bounds.w.toFixed(3));
+    L.push('# bounds_h_mm = ' + t.bounds.h.toFixed(3));
+    L.push('# ---');
+    L.push('OUTER');
+    t.outer.forEach(p => L.push(p.x.toFixed(4) + ' ' + p.y.toFixed(4)));
+    L.push('INNER');
+    t.inner.forEach(p => L.push(p.x.toFixed(4) + ' ' + p.y.toFixed(4)));
+    L.push('');
+    L.push('# End of file');
+    return L.join('\r\n');
+}
+
+// ===================== ЭКСПОРТ КООРДИНАТ (TXT) - ВСЕ ВИТКИ =====================
+function exportCoordsTXT() {
+    if (!lastResult) { alert('Сначала выполните расчёт.'); return; }
+    if (lastResult.mode !== 'cone' || !lastResult.turns || !lastResult.turns.length) {
+        alert('Экспорт координат доступен только для конического режима после расчёта.');
+        return;
+    }
+
+    const L = [];
+    L.push('# Razvertka konusnogo shneka - koordinaty dlya KOMPAS-3D API');
+    L.push('# Koordinaty v millimetrah (X Y), sistema koordinat - kak v raschyote');
+    L.push('# N (tochek razbieniya) = ' + lastResult.N);
+    L.push('# Weld_allowance_mm = ' + lastResult.weld.toFixed(3));
+    L.push('# Turns_count = ' + lastResult.turns.length);
+    L.push('# ---');
+    L.push('');
+
+    lastResult.turns.forEach(t => {
+        L.push('[TURN ' + t.idx + ']');
+        L.push('# label = ' + t.label);
+        L.push('# z_range_mm = ' + t.z0.toFixed(3) + ' .. ' + t.z1.toFixed(3));
+        L.push('# D_mm = ' + t.Da.toFixed(3) + ' -> ' + t.Db.toFixed(3));
+        L.push('# sector_r_mm = ' + t.rSect.toFixed(3));
+        L.push('# sector_R_mm = ' + t.RSect.toFixed(3));
+        L.push('# sector_theta_deg = ' + t.theta.toFixed(4));
+        L.push('# sector_alpha_deg = ' + t.alpha.toFixed(4));
+        L.push('# points = ' + t.outer.length);
+        L.push('# bounds_w_mm = ' + t.bounds.w.toFixed(3));
+        L.push('# bounds_h_mm = ' + t.bounds.h.toFixed(3));
+        L.push('# ---');
+        L.push('OUTER');
+        t.outer.forEach(p => {
+            L.push(p.x.toFixed(4) + ' ' + p.y.toFixed(4));
+        });
+        L.push('INNER');
+        t.inner.forEach(p => {
+            L.push(p.x.toFixed(4) + ' ' + p.y.toFixed(4));
+        });
+        L.push('');
+    });
+
+    L.push('# End of file');
+
+    const content = L.join('\r\n');
+    downloadBlob(content, 'razvertka_koordinaty.txt', 'text/plain;charset=utf-8');
+}
+
+// ===================== ЭКСПОРТ КООРДИНАТ (TXT) - ПО ОТДЕЛЬНОСТИ =====================
+function exportCoordsTXTPerTurn() {
+    if (!lastResult) { alert('Сначала выполните расчёт.'); return; }
+    if (lastResult.mode !== 'cone' || !lastResult.turns || !lastResult.turns.length) {
+        alert('Экспорт координат доступен только для конического режима после расчёта.');
+        return;
+    }
+    lastResult.turns.forEach((t, i) => {
+        setTimeout(() => {
+            downloadBlob(
+                buildTurnTXTContent(t),
+                'vitok_' + String(t.idx).padStart(2, '0') + '_koordinaty.txt',
+                'text/plain;charset=utf-8'
+            );
+        }, i * 350);
+    });
+}
+
+// ===================== ИНИЦИАЛИЗАЦИЯ =====================
+window.onload = function () {
+    const restored = restoreCurrentData();
+    if (!restored) {
+        document.getElementById('D').value = '200';
+        document.getElementById('d').value = '80';
+        document.getElementById('S').value = '160';
+        document.getElementById('t').value = '4';
+        document.getElementById('delta').value = '0';
+        document.getElementById('D1').value = '200';
+        document.getElementById('D2').value = '80';
+        document.getElementById('d1').value = '80';
+        document.getElementById('d2').value = '40';
+        document.getElementById('Hc').value = '160';
+        document.getElementById('Sc').value = '160';
+        document.getElementById('tc').value = '4';
+        document.getElementById('deltac').value = '0';
+        document.getElementById('Np').value = '12';
+        document.getElementById('weldAllow').value = '2';
+        saveCurrentData();
+    }
+    updateModeUI();
+    updateAllSlotsStatus();
+    document.querySelectorAll('input[type="number"]').forEach(inp => {
+        inp.addEventListener('input', function () {
+            saveCurrentData();
+            if (['D','S','D1','D2','Sc'].includes(this.id)) updateStepRecommendation();
+        });
+    });
+    updateStepRecommendation();
+    calculate();
+};
+</script>
+</body>
+</html>
